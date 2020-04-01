@@ -5,6 +5,7 @@ const cors = require('cors')
 const helmet = require('helmet')
 const { NODE_ENV } = require('./config')
 const winston = require('winston')
+const uuid = require('uuid/v4')
 
 const app = express()
 
@@ -45,15 +46,15 @@ app.use(function validateBearerToken(req, res, next) {
 
 const bookmarks = [
     {
-        title: 'github',
         id: 1,
+        title: 'github',
         url: 'https://github.com/',
         description: 'link to github',
         rating: '5'
     },
     {
-        title: 'google',
         id: 2,
+        title: 'google',
         url: 'https://google.com/',
         description: 'link to google',
         rating: '4'
@@ -80,7 +81,51 @@ app.get('/bookmarks/:id', (req, res) => {
 })
 
 app.post('/bookmarks', (req, res) => {
+    const { title, url, description, rating } = req.body
 
+    if (!title) {
+        logger.error(`Title is required`);
+        return res
+          .status(400)
+          .send('Invalid data');
+    } 
+    if (!url) {
+        logger.error(`url is required`);
+        return res
+          .status(400)
+          .send('Invalid data');
+    }
+    if (!description) {
+        logger.error(`Description is required`);
+        return res
+          .status(400)
+          .send('Invalid data');
+    }
+    if (!rating) {
+        logger.error(`Rating is required`);
+        return res
+          .status(400)
+          .send('Invalid data');
+    }
+
+    const id = uuid()
+
+    const bookmark = {
+        id,
+        title,
+        url,
+        description,
+        rating
+    }
+
+    bookmarks.push(bookmark)
+
+    logger.info(`Card with id ${id} created`)
+
+    res
+        .status(201)
+        .location(`http://localhost:8000/bookmarks/${id}`)
+        .json(bookmark)
 })
 
 app.use(function errorHandler(error, req, res, next) {
@@ -96,10 +141,5 @@ app.use(function errorHandler(error, req, res, next) {
 
 module.exports = app
 
-
-
-// Write a route handler for POST /bookmarks 
-    // that accepts a JSON object representing a bookmark 
-    // and adds it to the list of bookmarks after validation.
 // Write a route handler for the endpoint DELETE /bookmarks/:id 
     // that deletes the bookmark with the given ID.
