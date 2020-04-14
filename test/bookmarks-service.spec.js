@@ -36,19 +36,6 @@ describe('bookmarks-service', () => {
                     expect(actual).to.eql(selectedBookmark)
                 })
         })
-        it('adds new bookmark to the array', () => {
-            const newItem = {
-                id: 5,
-                title: 'Other',
-                url: 'https://www.other.com/',
-                description: 'Other homepage',
-                rating: 3
-            }
-            return service.addBookmark(db, newItem)
-                .then(actual => {
-                    expect(actual).to.eql(newItem)
-                })
-        })
         it('deletes selected item by id', () => {
             const itemId = 2
             return service.deleteBookmark(db, itemId)
@@ -76,5 +63,27 @@ describe('bookmarks-service', () => {
                 })
             })  
         })
+    })
+
+    context('testing bookmarks-service without data', () => {
+        it('returns an empty array from getAllBookmarks()', () => {
+            return service.getAllBookmarks(db)
+                .then(actual => {
+                    expect(actual).to.eql([])
+                })
+        })
+        it('adds new bookmark to the array and gives it an id', () => {
+            const newItem = {
+                id: 1,
+                title: 'Other',
+                url: 'https://www.other.com/',
+                description: 'Other homepage',
+                rating: 3
+            }
+            return service.addBookmark(db, newItem)
+                .then(actual => {
+                    expect(actual).to.eql(newItem)
+                })
+        }) 
     })
 })
