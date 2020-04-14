@@ -3,5 +3,5 @@ CREATE TABLE bookmark_list (
     title TEXT NOT NULL,
     url TEXT NOT NULL,
     description TEXT,
-    rating INTEGER,
+    rating INTEGER
 );

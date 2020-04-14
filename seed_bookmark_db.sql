@@ -1,4 +1,4 @@
- INSERT INTO bookmarks_list (title, url, description, rating) VALUES 
+ INSERT INTO bookmark_list (title, url, description, rating) VALUES 
     ('Google', 'https://www.google.com/', 'Google homepage', '4'),
     ('Thinkful', 'https://www.thinkful.com/', 'Thinkful homepage', '3'),
     ('Twitter', 'https://twitter.com/explore', 'Twitter homepage', '4'),
