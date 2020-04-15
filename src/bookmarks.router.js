@@ -1,14 +1,18 @@
 const express = require('express')
 const bookmarkRouter = express.Router()
-const bookmarks = require('./store')
+const bookmarksService = require('./bookmarks-service')
 const logger = require('./logger')
 const uuid = require('uuid/v4')
 
 bookmarkRouter
     .route('/')
-    .get((req, res) => {
-        res
-            .json(bookmarks)
+    .get((req, res, next) => {
+        const db = req.app.get('db')
+        bookmarksService.getAllBookmarks(db)
+            .then(bookmarks => {
+                res.json(bookmarks)
+            })
+            .catch(next)
     })
     .post((req, res) => {
         const { title, url, description, rating } = req.body
@@ -60,18 +64,18 @@ bookmarkRouter
 
 bookmarkRouter
     .route('/:id')
-    .get((req, res) => {
-        const { id } = req.params;
-        const bookmark = bookmarks.find(mark => mark.id == id);
-
-        if(!bookmark) {
-            logger.error(`Card with id ${id} not found.`);
-            return res
-                .status(404)
-                .send('Card Not Found')
-        }
-        res
-            .json(bookmark)
+    .get((req, res, next) => {
+        const db = req.app.get('db');
+        bookmarksService.getById(db, req.params.id)
+            .then(bookmark => {
+                if(!bookmark) {
+                    return res.status(404).json({
+                        error: { message: `Bookmark doesn't exist`}
+                    })
+                }
+                res.json(bookmark)
+            })
+            .catch(next)
     })
     .delete((req, res) => {
         const { id } = req.params;
