@@ -2,7 +2,7 @@ const app = require('../src/app')
 require('dotenv').config()
 const knex = require('knex')
 const service = require('../src/bookmarks-service')
-const { makeTestData } = require('./testData')
+const { makeTestData, makeMaliciousBookmark } = require('./testData')
 const { expect } = require('chai')
 
 describe.only('bookmarks.router', () => {
@@ -55,30 +55,81 @@ describe.only('bookmarks.router', () => {
                         .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
                         .send(newBookmark)
                         .expect(400, {
-                            error: { message: `Missing '${field} in request body`}
+                            error: { message: `Missing '${field}' in request body`}
                         })
-
                 })
-
+            })
+            const badRating = {
+                title: 'new',
+                description: 'newer',
+                url: 'randomurl',
+                rating: 7
+            }
+            it(`responds with 400 and an error message when the rating is not between 1 and 5`, () => {
+                return supertest(app)
+                    .post('/bookmarks')
+                    .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                    .send(badRating)
+                    .expect(400, {
+                        error: { message: `Rating must be between 1 and 5`}
+                    })
             })
         })
+        context('Given and XSS attack bookmark', () => {
+            const { maliciousBookmark, expectedBookmark } = makeMaliciousBookmark()
 
-        //still writing this test:
-        // context('Given and XSS attack bookmark', () => {
-        //     const maliciousBookmark = {
-        //         id: 911,
-        //         title: 'Naughty naughty very naughty <script>alert("xss");</script>',
-        //         url: 'https://bad.com',
-        //         description: `Bad image <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">. But not <strong>all</strong> bad.`,
-        //         rating: '1'
-        //     }
-        //     beforeEach('insert malicious article', () => {
-        //         return db
-        //             .into('bookmarks_list')
-        //             .insert([ maliciousBookmark ])
-        //     })
-
-        // })
+            beforeEach('insert malicious article', () => {
+                return db
+                    .into('bookmark_list')
+                    .insert([ maliciousBookmark ])
+            })
+            it('GET /bookmarks removes XSS attack content', () => {
+                return supertest(app)
+                .get(`/bookmarks`)
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .expect(200)
+                .expect(res => {
+                    expect(res.body[4].title).to.eql(expectedBookmark.title)
+                    expect(res.body[4].description).to.eql(expectedBookmark.description)
+                })
+            })
+            it('GET /bookmarks/:id removes XSS attack content', () => {
+                return supertest(app)
+                .get(`/bookmarks/${maliciousBookmark.id}`)
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .expect(200)
+                .expect(res => {
+                    expect(res.body.title).to.eql(expectedBookmark.title)
+                    expect(res.body.description).to.eql(expectedBookmark.description)
+                })
+            })
+            //500 server error - duplicate key value again  :( 
+            // it('POST /bookmarks removes XSS attack content', () => {
+            //     return supertest(app)
+            //     .post(`/bookmarks`)
+            //     .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+            //     .send(maliciousBookmark)
+            //     .expect(200)
+            //     .expect(res => {
+            //         expect(res.body.title).to.eql(expectedBookmark.title)
+            //         expect(res.body.description).to.eql(expectedBookmark.description)
+            //     })
+            // })
+        })
+        it('DELETE /bookmarks/:id responds with 204 and removes the article', () => {
+            const idToRemove = 2
+            const expectedBookmarks = testData.filter(bm => bm.id !== idToRemove)
+            return supertest(app)
+                .delete(`/bookmarks/${idToRemove}`)
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .expect(204)
+                .then(res => {
+                    supertest(app)
+                        .get('/bookmarks')
+                        .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                        .expect(expectedBookmarks)
+                })
+        })
     })
 
     context('testing bookmarks-service without data', () => {
@@ -123,8 +174,12 @@ describe.only('bookmarks.router', () => {
                         .expect(postRes.body)
                 )
         })
-        
-    })
-
-    
+        it('DELETE /bookmarks/:id responds with 404', () => {
+            const idToRemove = 2234
+            return supertest(app)
+                .delete(`/bookmarks/${idToRemove}`)
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .expect(404, { error: {  message: `Bookmark doesn't exist`}})
+        })  
+    }) 
 })

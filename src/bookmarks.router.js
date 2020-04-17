@@ -4,6 +4,15 @@ const bookmarksService = require('./bookmarks-service')
 const logger = require('./logger')
 const uuid = require('uuid/v4')
 const jsonParser = express.json()
+const xss = require('xss')
+
+const sanitizeBookmark = bookmark => ({
+    id: bookmark.id,
+    title: xss(bookmark.title),
+    url: bookmark.url,
+    rating: bookmark.rating,
+    description: xss(bookmark.description) 
+})
 
 bookmarkRouter
     .route('/')
@@ -11,7 +20,8 @@ bookmarkRouter
         const db = req.app.get('db')
         bookmarksService.getAllBookmarks(db)
             .then(bookmarks => {
-                res.json(bookmarks)
+                //need to make this sanitize too
+                res.json(bookmarks.map(sanitizeBookmark))
             })
             .catch(next)
     })
@@ -22,9 +32,15 @@ bookmarkRouter
         for(const [key, value] of Object.entries(newBookmark)) {
             if ( value == null) {
                 return res.status(400).json({
-                    error: { message: `Missing '${key} in request body` }
+                    error: { message: `Missing '${key}' in request body` }
                 })
             }
+        }
+
+        if(rating > 5 || rating < 1) {
+            return res.status(400).json({
+                error: { message: `Rating must be between 1 and 5`}
+            })
         }
 
         bookmarksService.addBookmark(
@@ -34,7 +50,7 @@ bookmarkRouter
             .then(bookmark => {
                 res
                     .status(201)
-                    .json(bookmark)
+                    .json(sanitizeBookmark(bookmark))
             })
             .catch(next)
     })
@@ -42,37 +58,38 @@ bookmarkRouter
 
 bookmarkRouter
     .route('/:id')
-    .get((req, res, next) => {
-        const db = req.app.get('db');
-        bookmarksService.getById(db, req.params.id)
+    .all( (req, res, next) => {
+        bookmarksService.getById(
+            req.app.get('db'),
+            req.params.id
+        )
             .then(bookmark => {
                 if(!bookmark) {
                     return res.status(404).json({
                         error: { message: `Bookmark doesn't exist`}
                     })
                 }
-                res.json(bookmark)
+                res.bookmark = bookmark
+                next()
             })
             .catch(next)
     })
-    .delete((req, res) => {
-        const { id } = req.params;
-        const bookmarkIndex = bookmarks.findIndex(mark => mark.id == id)
-
-        if (bookmarkIndex === -1) {
-            logger.error(`List with id ${id} not found.`);
-            return res
-                .status(404)
-                .send('Not Found');
-        }
-
-        console.log('index is ' + bookmarkIndex)
-        bookmarks.splice(bookmarkIndex, 1);
-
-        logger.info(`Bookmark with id ${id} deleted.`);
-        res
-            .status(204)
-            .end();
+    .get((req, res, next) => {
+        res.json(sanitizeBookmark(res.bookmark))
+    })
+    .delete((req, res, next) => {
+        bookmarksService.deleteBookmark(
+            req.app.get('db'),
+            req.params.id
+        )
+            .then(() => {
+                res.status(204).end()
+            })
+            .catch(next)
     })
 
 module.exports = bookmarkRouter
+
+//test is hanging and not finishing on its own
+//post test with data?
+//post xss test ^ same error
