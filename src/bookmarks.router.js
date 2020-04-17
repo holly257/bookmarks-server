@@ -3,6 +3,7 @@ const bookmarkRouter = express.Router()
 const bookmarksService = require('./bookmarks-service')
 const logger = require('./logger')
 const uuid = require('uuid/v4')
+const jsonParser = express.json()
 
 bookmarkRouter
     .route('/')
@@ -14,53 +15,21 @@ bookmarkRouter
             })
             .catch(next)
     })
-    .post((req, res) => {
+    .post(jsonParser, (req, res, next) => {
         const { title, url, description, rating } = req.body
-
-        if (!title) {
-            logger.error(`Title is required`);
-            return res
-                .status(400)
-                .send('Invalid data');
-        } 
-        if (!url) {
-            logger.error(`url is required`);
-            return res
-                .status(400)
-                .send('Invalid data');
-        }
-        if (!description) {
-            logger.error(`Description is required`);
-            return res
-                .status(400)
-                .send('Invalid data');
-        }
-        if (!rating) {
-            logger.error(`Rating is required`);
-            return res
-                .status(400)
-                .send('Invalid data');
-        }
-
-        const id = uuid()
-
-        const bookmark = {
-            id,
-            title,
-            url,
-            description,
-            rating
-        }
-
-        bookmarks.push(bookmark)
-
-        logger.info(`Card with id ${id} created`)
-
-        res
-            .status(201)
-            .location(`http://localhost:8000/bookmarks/${id}`)
-            .json(bookmark)
+        const newBookmark = { title, content, style }
+        bookmarksService.addBookmark(
+            req.app.get('db'),
+            newBookmark
+        )
+            .then(bookmark => {
+                res
+                    .status(201)
+                    .json(bookmark)
+            })
+            .catch(next)
     })
+    
 
 bookmarkRouter
     .route('/:id')
