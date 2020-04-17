@@ -5,7 +5,7 @@ const service = require('../src/bookmarks-service')
 const { makeTestData } = require('./testData')
 const { expect } = require('chai')
 
-describe('bookmarks.router', () => {
+describe.only('bookmarks.router', () => {
     let db
     before('db connected',() => {
         db = knex({
@@ -21,7 +21,9 @@ describe('bookmarks.router', () => {
         const testData = makeTestData()
         
         beforeEach(() => {
-            return db.into('bookmark_list').insert(testData)
+            return db
+                .into('bookmark_list')
+                .insert(testData)
         })
         it('GET /bookmarks responds with 200 and all of the bookmarks', () => {
             return supertest(app)
@@ -32,39 +34,51 @@ describe('bookmarks.router', () => {
         it('GET /bookmarks/:id responds with 200 and the correct bookmark object', () => {
             const bookmarkID = 2
             const bookmarkSelected = testData[bookmarkID - 1]
+            bookmarkSelected.id = 2
             return supertest(app)
                 .get(`/bookmarks/${bookmarkID}`)
                 .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
                 .expect(200, bookmarkSelected)
         })
-        it('POST /bookmarks', () => {
-            it('created a bookmarks, responding with 201 and the new bookmark', () => {
-                const newItem = {
-                    title: 'new',
-                    url: 'https://www.new.com/',
-                    description: 'new homepage',
-                    rating: 3
+        context('POST /articles', () => {  
+            const requiredFields = ['title', 'url']
+            requiredFields.forEach(field => {
+                const newBookmark = {
+                    title: 'test new bookmark',
+                    url: 'https://test.com'
                 }
-                return supertest(app)
-                    .post('/bookmarks')
-                    .send(newItem)
-                    .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
-                    .expect(201)
-                    .expect(res => {
-                        expect(res.body.title).to.eql(newItem.title)
-                        expect(res.body.url).to.eql(newItem.url)
-                        expect(res.body.description).to.eql(newItem.description)
-                        expect(res.body.rating).to.eql(newItem.rating)
-                        expect(res.body).to.have.property('id')
-                    })
-                    .then(postRes => 
-                        supertest(app)
-                            .get(`/bookmarks/${postRes.body.id}`)
-                            .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
-                            .expect(postRes.body)
-                    )
+                it(`responds with 400 and an error message when the '${field}' is missing`, () => {
+                    delete newBookmark[field]
+
+                    return supertest(app)
+                        .post('/bookmarks')
+                        .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                        .send(newBookmark)
+                        .expect(400, {
+                            error: { message: `Missing '${field} in request body`}
+                        })
+
+                })
+
             })
         })
+
+        //still writing this test:
+        // context('Given and XSS attack bookmark', () => {
+        //     const maliciousBookmark = {
+        //         id: 911,
+        //         title: 'Naughty naughty very naughty <script>alert("xss");</script>',
+        //         url: 'https://bad.com',
+        //         description: `Bad image <img src="https://url.to.file.which/does-not.exist" onerror="alert(document.cookie);">. But not <strong>all</strong> bad.`,
+        //         rating: '1'
+        //     }
+        //     beforeEach('insert malicious article', () => {
+        //         return db
+        //             .into('bookmarks_list')
+        //             .insert([ maliciousBookmark ])
+        //     })
+
+        // })
     })
 
     context('testing bookmarks-service without data', () => {
@@ -83,6 +97,33 @@ describe('bookmarks.router', () => {
                     message: `Bookmark doesn't exist`
                 } })
         })
+        it('POST /bookmarks creates a bookmark, responding with 201 and the new bookmark', () => {
+            const newItem = {
+                title: 'new',
+                url: 'https://www.new.com/',
+                description: 'new homepage',
+                rating: 3
+            }
+            return supertest(app)
+                .post('/bookmarks')
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .send(newItem)
+                .expect(201)
+                .expect(res => {
+                    expect(res.body.title).to.eql(newItem.title)
+                    expect(res.body.url).to.eql(newItem.url)
+                    expect(res.body.description).to.eql(newItem.description)
+                    expect(res.body.rating).to.eql(newItem.rating)
+                    expect(res.body).to.have.property('id')
+                })
+                .then(postRes => 
+                    supertest(app)
+                        .get(`/bookmarks/${postRes.body.id}`)
+                        .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                        .expect(postRes.body)
+                )
+        })
+        
     })
 
     
