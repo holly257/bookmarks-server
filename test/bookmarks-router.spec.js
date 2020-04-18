@@ -116,6 +116,32 @@ describe.only('bookmarks.router', () => {
             //     })
             // })
         })
+        it('POST /bookmarks creates a bookmark, responding with 201 and the new bookmark', () => {
+            const newItem = {
+                title: 'new',
+                url: 'https://www.new.com/',
+                description: 'new homepage',
+                rating: 3
+            }
+            return supertest(app)
+                .post('/bookmarks')
+                .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                .send(newItem)
+                .expect(201)
+                .expect(res => {
+                    expect(res.body.title).to.eql(newItem.title)
+                    expect(res.body.url).to.eql(newItem.url)
+                    expect(res.body.description).to.eql(newItem.description)
+                    expect(res.body.rating).to.eql(newItem.rating)
+                    expect(res.body).to.have.property('id')
+                })
+                .then(postRes => 
+                    supertest(app)
+                        .get(`/bookmarks/${postRes.body.id}`)
+                        .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
+                        .expect(postRes.body)
+                )
+        })
         it('DELETE /bookmarks/:id responds with 204 and removes the article', () => {
             const idToRemove = 2
             const expectedBookmarks = testData.filter(bm => bm.id !== idToRemove)
