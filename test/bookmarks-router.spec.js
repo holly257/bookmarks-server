@@ -26,10 +26,11 @@ describe.only('bookmarks.router', () => {
                 .insert(testData)
         })
         it('GET /bookmarks responds with 200 and all of the bookmarks', () => {
+            const testDataWithIds = testData.map((e, i) => e.id = (i+1))
             return supertest(app)
                 .get('/bookmarks')
                 .set({ Authorization: 'Bearer b1e66383-3f8b-4d6e-8143-42a446443e5c'})
-                .expect(200, testData)
+                .expect(200, testDataWithIds)
         })
         it('GET /bookmarks/:id responds with 200 and the correct bookmark object', () => {
             const bookmarkID = 2
